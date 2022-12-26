@@ -8,7 +8,7 @@ def get_priority(letter:str) -> int:
         return l_value - 38
 
 def get_rucksacks_raw() -> List[str]:
-    with open("aoc2022/day3.txt", mode="r+", encoding="utf-8") as f:
+    with open("inputs/day3.txt", mode="r+", encoding="utf-8") as f:
         return [x.strip() for x in f.readlines()]
 
 def get_rucksack_diffs(rucksacks:List[str]) -> int:

@@ -5,7 +5,7 @@ from typing import List, Tuple
 def get_ranges() -> List[Tuple]:
     ranges = []
     re_patt = re.compile(r"(\d+)\-(\d+),(\d+)\-(\d+)")
-    with open("aoc2022/day4.txt", mode="r+", encoding="utf-8") as f:
+    with open("inputs/day4.txt", mode="r+", encoding="utf-8") as f:
         for line in f:
             match = re_patt.fullmatch(line.strip())
             full = tuple(int(match.group(i)) for i in range(1,5))
