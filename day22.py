@@ -2,9 +2,10 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Dict, List, Set, Tuple
 
+
 def generateinstructions(instrset):
     innumber = True
-    c:str
+    c: str
     currstr = ""
     for c in instrset:
         if c.isnumeric():
@@ -20,106 +21,140 @@ def generateinstructions(instrset):
     if len(currstr) > 0:
         yield currstr
 
-def day22_read():
+
+def day22_read() -> Tuple[Dict[Tuple, str], Tuple, str]:
     with open("inputs/day22.txt", mode="r+", encoding="utf-8") as f:
         ftext = f.read().split("\n\n")
         start = None
-        ground = set()
-        walls = set()
-        
-        for y,line in enumerate(ftext[0]):
-            for x,c in enumerate(line):
-                if c == ".":
-                    ground.add((x,y))
-                    if start is None:
-                        start = (x,y)
-                elif c == "#":
-                    walls.add((x,y))
+        mapd = dict()
 
-        return ground, walls, start, ftext[1]
+        for y, line in enumerate(ftext[0].splitlines()):
+            for x, c in enumerate(line):
+                if not c.isspace():
+                    mapd[(x, y)] = c
+                    if start is None and c == ".":
+                        start = (x, y)
 
-def move(x:int, y:int, dx:int, dy:int, steps:int, mapstr:List[str]):
-    new_x, new_y = x, y
-    for _ in range(steps):
-        new_x += dx
-        new_y += dy
-        if mapstr[new_x][new_y] != ".":
-            new_x -= dx
-            new_y -= dy
-            break
-    return new_x, new_y
+        return mapd, start, ftext[1]
 
-def move_mark(x:int, y:int, dx:int, dy:int, steps:int, mapstr:List[str], mark:List[str]):
+
+def movewmark(pos: Tuple[int, int], d: Tuple[int, int], steps: int, mapd: Dict[Tuple, str]) -> Tuple[Tuple,Dict]:
     marks = {
-        (1,0):">",
-        (0,1):"V",
-        (-1,0):"<",
-        (0,-1):"^"
+        (1, 0): ">",
+        (0, 1): "V",
+        (-1, 0): "<",
+        (0, -1): "^"
     }
-    new_x, new_y = x, y
-    for _ in range(steps):
-        new_x += dx
-        new_y += dy
-        if mapstr[new_y][new_x] == "#":
-            new_x -= dx
-            new_y -= dy
-            break
-        else:
-            mark[new_y] = mark[new_y][:new_x] + marks[(dx, dy)] + mark[new_y][new_x+1:]
-
-    return new_x, new_y
-
-def movewmark(pos:Tuple[int,int], d:Tuple[int,int], steps:int, ground:Set, walls:Set) -> Dict:
-    marks = {
-        (1,0):">",
-        (0,1):"V",
-        (-1,0):"<",
-        (0,-1):"^"
-    }
-    x,y = pos
-    dx,dy = d
+    x, y = pos
+    dx, dy = d
     dir = marks[d]
-    the_moves = dict()
+    the_moves = {(x,y):dir}
+
     for _ in range(steps):
         x += dx
         y += dy
-        if (x,y) in walls:
-            x -= dx
-            y -= dy
-            break
-        elif (x,y) in ground:
-            the_moves[(x,y)] = dir
+        if (x, y) in mapd:
+            if mapd[(x, y)] == "#":
+                x -= dx
+                y -= dy
+                break
+            elif mapd[(x, y)] == ".":
+                the_moves[(x, y)] = dir
         else:
-            pass
+            src_x, src_y = x, y
+            minx = maxx = miny = maxy = 0
+            all_x = all_y = None
+            if dy == 0:
+                all_x = {i for (i, j) in mapd if y == j}
+                minx, maxx = min(all_x), max(all_x)
+            if dx == 0:
+                all_y = {j for (i, j) in mapd if x == i}
+                miny, maxy = min(all_y), max(all_y)
 
+            while (x, y) not in mapd:
+                x, y = x+dx, y+dy
+                if dx == 0:
+                    y = (maxy if y < miny else
+                        miny if y > maxy else y)
+                if dy == 0:
+                    x = (maxx if x < minx else
+                        minx if x > maxx else x)
+            if mapd[(x,y)] != ".":
+                x = src_x - dx
+                y = src_y - dy
+                break
+            else:
+                the_moves[(x, y)] = dir
+
+    return (x,y), the_moves
+
+def printmap(mapd:Dict, moves:Dict):
+    maxx = max(x for (x, _) in mapd)
+    maxy = max(y for (_, y) in mapd)
+
+    for y in range(maxy+1):
+        for x in range(maxx+1):
+            if (x,y) in moves:
+                print(moves[(x,y)], end="")
+            elif (x,y) in mapd:
+                print(mapd[(x,y)], end="")
+            else:
+                print(" ", end="")
+        print("")
 
 def day22():
-    ground, walls, start, instrset = day22_read()
+    mapd, start, instrset = day22_read()
 
     x = list()
-    
-    start_x = mapstr[0].index(".")
-    start_y = 0
+
     directions = [
-        [1,0],
-        [0,1],
-        [-1,0],
-        [0,-1]
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+        [0, -1]
     ]
-    rots = {"R":1,"L":-1}
+    rots = {"R": 1, "L": -1}
     facing = 0
-    x, y = start_x, start_y
+    x, y = start
+
+    the_moves = dict()
 
     for instr in generateinstructions(instrset):
         if instr.isnumeric():
-            # Move fwd code
             dx, dy = directions[facing]
-            x, y = move_mark(x, y, dx, dy, int(instr), mapstr, mark_map)
+            (x,y), newmoves = movewmark((x,y), (dx, dy), int(instr), mapd)
+            the_moves.update(newmoves)
         else:
             facing = (facing + rots[instr]) % 4
 
-    if mark_map is not None:
-        print("\n".join(mapstr))
+    #printmap(mapd, the_moves)
+    c, r, f = x+1, y+1, facing
+
+    print(f"Row: {r}, Column: {c}, Facing: {f}")
+    print(1000*r + 4*c + f)
+
+def getcubesize(mapd:Dict):
+    start_y = 0
+    start_x = min(x for (x,y) in mapd if y == start_y)
+    x, y = start_x, start_y
+    
+    while (x,y) in mapd and (x, start_y) in mapd and (start_x, y) in mapd:
+        x += 1
+        y += 1
+    
+    return y
+
+
+
+def day22_2():
+    mapd, start, instrset = day22_read()
+    side = getcubesize(mapd)
+    limit_x, limit_y = max(x for (x,_) in mapd), max(y for (_, y) in mapd)
+    c_x = (limit_x + 1) // side
+    c_y = (limit_y + 1) // side
+    
+    print(f"limits: {limit_x + 1}, {limit_y + 1} ({side})")
+
 
 if __name__ == "__main__":
-    day22()
+    day22_2()
