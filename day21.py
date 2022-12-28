@@ -11,6 +11,8 @@ class BOpNode(object):
     op: str = field(init=False, default=None)
     left: BOpNode = field(init=False, repr=False, hash=False, default=None)
     right: BOpNode = field(init=False, repr=False, hash=False, default=None)
+    parent: BOpNode = field(init=False, repr=False, hash=False, default=None)
+    fwdeval: int = field(init=False, repr=False, hash=False, default=None)
 
     def traverse(self):
         s = "("
@@ -35,7 +37,54 @@ class BOpNode(object):
             r_result = 0 if self.right is None else self.right.operate()
             fn = ops[self.op]
             return fn(l_result, r_result)
-
+    
+    def evalfwd(self):
+        ops = {
+            "+": lambda x, y: x+y,
+            "-": lambda x, y: x-y,
+            "*": lambda x, y: x*y,
+            "/": lambda x, y: x//y,
+        }
+        if self.name == "humn":
+            self.fwdeval = "humn"
+        elif self.op.isnumeric():
+            self.fwdeval = int(self.op)
+        else:
+            if self.left is not None: self.left.evalfwd()
+            if self.right is not None: self.right.evalfwd()
+            if self.left.fwdeval == "humn" or self.right.fwdeval == "humn":
+                self.fwdeval = "humn"
+            else:
+                fn = ops[self.op]
+                self.fwdeval = fn(self.left.fwdeval, self.right.fwdeval)
+    
+    def evalbwd(self):
+        ops = {
+            "+": lambda x, y: x+y,
+            "-": lambda x, y: x-y,
+            "*": lambda x, y: x*y,
+            "/": lambda x, y: x//y,
+        }
+        if self.left is not None and self.left.fwdeval == "humn":
+            if self.op == "+":
+                self.left.fwdeval = self.fwdeval - self.right.fwdeval
+            elif self.op == "-":
+                self.left.fwdeval = self.fwdeval + self.right.fwdeval
+            elif self.op == "*":
+                self.left.fwdeval = self.fwdeval // self.right.fwdeval
+            elif self.op == "/":
+                self.left.fwdeval = self.fwdeval * self.right.fwdeval
+            self.left.evalbwd()
+        elif self.right is not None and self.right.fwdeval == "humn":
+            if self.op == "+":
+                self.right.fwdeval = self.fwdeval - self.left.fwdeval
+            elif self.op == "-":
+                self.right.fwdeval = self.left.fwdeval - self.fwdeval
+            elif self.op == "*":
+                self.right.fwdeval = self.fwdeval // self.left.fwdeval
+            elif self.op == "/":
+                self.right.fwdeval = self.left.fwdeval // self.fwdeval
+            self.right.evalbwd()
 
 def day21_1B():
     nodes = dict()
@@ -83,15 +132,26 @@ def day21_2():
                 bnode.op = op_str
                 nodeLeft = BOpNode(x) if x not in nodes else nodes[x]
                 nodeRight = BOpNode(y) if y not in nodes else nodes[y]
-                bnode.left, bnode.right = nodeLeft, nodeRight
-                nodes[left] = bnode
-                nodes[x] = nodeLeft
-                nodes[y] = nodeRight
+                nodes[left] = nodeLeft.parent = nodeRight.parent = bnode
+                nodes[x] = bnode.left = nodeLeft
+                nodes[y] = bnode.right = nodeRight
+                
     # nodes[""]
-    print(nodes["root"].traverse())
+    #print(nodes["root"].traverse())
     # print(nodes["root"].operate())
 
-    # TODO: call right
+    root: BOpNode = nodes["root"]
+    root.left.evalfwd()
+    root.right.evalfwd()
+
+    if root.left.fwdeval == "humn":
+        root.left.fwdeval = root.right.fwdeval
+        root.left.evalbwd()
+    elif root.right.fwdeval == "humn":
+        root.right.fwdeval = root.left.fwdeval
+        root.right.evalbwd
+    print(nodes["humn"].fwdeval)
+    
 
 
 def resolvedependencies(left, found, deps, pending):
