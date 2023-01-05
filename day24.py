@@ -85,86 +85,148 @@ def generate_moves(me:Pos, lims:Pos, start:Pos, end:Pos, blizzards:Tuple[Blizzar
         y > 0 and y < limy)
     ]
 
-def generate_all_states(blizzards:Tuple[Blizzard]) ->List[Tuple[Pos]]:
+def generate_all_states(blizzards:Tuple[Blizzard]) -> List[Set[Pos]]:
     all_states:List[Tuple[Pos]] = list()
-    curr = tuple((b.x, b.y) for b in blizzards)
+    curr = set((b.x, b.y) for b in blizzards)
     while curr not in all_states:
         all_states.append(curr)
         for b in blizzards:
             b.move()
-        curr = tuple((b.x, b.y) for b in blizzards)
+        curr = set((b.x, b.y) for b in blizzards)
 
     return all_states
 
-@dataclass(eq=True, order=True)
+@dataclass(eq=True, order=True, unsafe_hash=True)
 class PosPrioritized(object):
     priority:int
-    data:Any = field(compare=False)
+    data:Any = field(compare=False, hash=True)
+
+def createvertices(x_max:int, y_max:int) -> Set[Pos]:
+    return {(x,y) for (x,y) in itertools.product(range(1, x_max), range(1, y_max))}
 
 def day24():
     x_max, y_max, start, end, blizzards = day24_read()
-    all_states = generate_all_states(blizzards)
-    n = len(all_states)
+    all_blizz = generate_all_states(blizzards)
+    n = len(all_blizz)
     print(n)
+    vertices = createvertices(x_max, y_max)
 
-    pos = start
+    v_set:Dict[Pos,PosPrioritized] = dict()
+    pq = list()
+
+    init_node = (start[0], start[1], 0)
     visited = set()
+
+    init_ptzed = PosPrioritized(0, init_node)
+    pq.append(init_ptzed)
+
     distances = dict()
-    t = 0
-    distances[pos] = 0
-    base = (t, pos)
-
-    xyz = PosPrioritized(t, pos)
-
-    pq = [xyz]
-    allpos = {pos:xyz}
-    heapq.heapify(pq)
+    nodes = dict()
 
     while pq:
-        heapobj = heapq.heappop(pq)
-        t, pos = heapobj.priority, heapobj.data
-        t = t+1
-        bs = all_states[t % n]
+        ptzed = heapq.heappop(pq)
+        dist = ptzed.priority
+        node = ptzed.data
+        x,y,t = node
+
+        if (x,y) == end:
+            print(t)
+            break
+
         neighbors = [
-            (pos[0] + dx, pos[1] + dy)
-            for dx,dy in ((0,0),(0,-1),(1,0),(0,1),(-1,0))
-            if (pos[0] + dx, pos[1] + dy) == start or
-            (pos[0] + dx, pos[1] + dy) == end or
-            (0 < pos[0] + dx < x_max and 0 < pos[1] + dy < y_max
-            and pos not in bs)
+            (x + dx, y + dy, t + 1)
+            for dx, dy in ((1,0),(-1,0),(0,1),(0,-1), (0,0))
+            if (x + dx, y + dy) == start
+            or (x + dx, y + dy) == end
+            or (
+                0 < x + dx < x_max 
+                and 0 < y + dy < y_max 
+                and (x + dx, y + dy) not in all_blizz[(t + 1) % n]
+            )
         ]
-        for pos_ns in neighbors:
-            if pos_ns not in distances:
-                distances[pos_ns] = t
-            else:
-                distances[pos_ns] = min(distances[pos_ns], t)
-            if pos_ns in allpos:
-                allpos[pos_ns].priority = min(allpos[pos_ns].priority, t)
+        for neigh in neighbors:
+            new_dist = dist + 2
+            if neigh not in visited:
+                if neigh not in distances:
+                    distances[neigh] = new_dist
+                    nodes[neigh] = PosPrioritized(new_dist, neigh)
+                    heapq.heappush(pq, nodes[neigh])
+                else:
+                    distances[neigh] = min(distances[neigh], new_dist)
+                    nodes[neigh].priority = distances[neigh]
+        heapq.heapify(pq)
+        visited.add(node)
 
-        
+
+    # dist is based on t
+    print(f"{x_max}, {y_max}")
 
 
+def shortestpath(start:Pos, end:Pos, t0:int, x_max:int, y_max:int, all_blizz:List[Set[Pos]]):
+    n = len(all_blizz)
+    pq = list()
+    init_node = (start[0], start[1], t0)
+    visited = set()
+
+    init_ptzed = PosPrioritized(0, init_node)
+    pq.append(init_ptzed)
+
+    distances = dict()
+    nodes = dict()
+
+    while pq:
+        ptzed = heapq.heappop(pq)
+        dist = ptzed.priority
+        node = ptzed.data
+        x,y,t = node
+
+        if (x,y) == end:
+            return t
+
+        neighbors = [
+            (x + dx, y + dy, t + 1)
+            for dx, dy in ((1,0),(-1,0),(0,1),(0,-1), (0,0))
+            if (x + dx, y + dy) == start
+            or (x + dx, y + dy) == end
+            or (
+                0 < x + dx < x_max 
+                and 0 < y + dy < y_max 
+                and (x + dx, y + dy) not in all_blizz[(t + 1) % n]
+            )
+        ]
+        for neigh in neighbors:
+            new_dist = dist + 2
+            if neigh not in visited:
+                if neigh not in distances:
+                    distances[neigh] = new_dist
+                    nodes[neigh] = PosPrioritized(new_dist, neigh)
+                    heapq.heappush(pq, nodes[neigh])
+                else:
+                    distances[neigh] = min(distances[neigh], new_dist)
+                    nodes[neigh].priority = distances[neigh]
+        heapq.heapify(pq)
+        visited.add(node)
+
+def day24_1():
+    x_max, y_max, start, end, blizzards = day24_read()
+    all_blizz = generate_all_states(blizzards)
     
+    t0 = shortestpath(start, end, 0, x_max, y_max, all_blizz)
 
+    print(t0)
 
+def day24_2():
+    x_max, y_max, start, end, blizzards = day24_read()
+    all_blizz = generate_all_states(blizzards)
+    t0 = 0
+    print(t0)
+    t1 = shortestpath(start, end, t0, x_max, y_max, all_blizz)
+    print(t1)
+    t2 = shortestpath(end, start, t1, x_max, y_max, all_blizz)
+    print(t2)
+    t3 = shortestpath(start, end, t2, x_max, y_max, all_blizz)
+    print(t3)
 
-    # x_max, y_max, start, end, blizzards = day24_read()
-    # depth = 0
-    # q = deque()
-    # q.append((depth + 1, start))
-
-    # while len(q) > 0:
-    #     d2, p = q.popleft()
-    #     if d2 > depth:
-    #         for b in blizzards:
-    #             b.move()
-    #         depth = d2
-    #     nextmoves = generate_moves(p, (x_max, y_max), start, end, blizzards)
-    #     if end in nextmoves:
-    #         break
-    #     q.extend((depth + 1, p2) for p2 in nextmoves)
-
-    # print(depth + 1)
 
 if __name__ == "__main__":
-    day24()
+    day24_2()
