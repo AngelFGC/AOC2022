@@ -38,7 +38,7 @@ def day22_read() -> Tuple[Dict[Tuple, str], Tuple, str]:
         return mapd, start, ftext[1]
 
 
-def movewmark(pos: Tuple[int, int], d: Tuple[int, int], steps: int, mapd: Dict[Tuple, str]) -> Tuple[Tuple,Dict]:
+def movewmark(pos: Tuple[int, int], d: Tuple[int, int], steps: int, mapd: Dict[Tuple, str]) -> Tuple[Tuple, Dict]:
     marks = {
         (1, 0): ">",
         (0, 1): "V",
@@ -48,7 +48,7 @@ def movewmark(pos: Tuple[int, int], d: Tuple[int, int], steps: int, mapd: Dict[T
     x, y = pos
     dx, dy = d
     dir = marks[d]
-    the_moves = {(x,y):dir}
+    the_moves = {(x, y): dir}
 
     for _ in range(steps):
         x += dx
@@ -75,32 +75,34 @@ def movewmark(pos: Tuple[int, int], d: Tuple[int, int], steps: int, mapd: Dict[T
                 x, y = x+dx, y+dy
                 if dx == 0:
                     y = (maxy if y < miny else
-                        miny if y > maxy else y)
+                         miny if y > maxy else y)
                 if dy == 0:
                     x = (maxx if x < minx else
-                        minx if x > maxx else x)
-            if mapd[(x,y)] != ".":
+                         minx if x > maxx else x)
+            if mapd[(x, y)] != ".":
                 x = src_x - dx
                 y = src_y - dy
                 break
             else:
                 the_moves[(x, y)] = dir
 
-    return (x,y), the_moves
+    return (x, y), the_moves
 
-def printmap(mapd:Dict, moves:Dict):
+
+def printmap(mapd: Dict, moves: Dict):
     maxx = max(x for (x, _) in mapd)
     maxy = max(y for (_, y) in mapd)
 
     for y in range(maxy+1):
         for x in range(maxx+1):
-            if (x,y) in moves:
-                print(moves[(x,y)], end="")
-            elif (x,y) in mapd:
-                print(mapd[(x,y)], end="")
+            if (x, y) in moves:
+                print(moves[(x, y)], end="")
+            elif (x, y) in mapd:
+                print(mapd[(x, y)], end="")
             else:
                 print(" ", end="")
         print("")
+
 
 def day22():
     mapd, start, instrset = day22_read()
@@ -122,7 +124,7 @@ def day22():
     for instr in generateinstructions(instrset):
         if instr.isnumeric():
             dx, dy = directions[facing]
-            (x,y), newmoves = movewmark((x,y), (dx, dy), int(instr), mapd)
+            (x, y), newmoves = movewmark((x, y), (dx, dy), int(instr), mapd)
             the_moves.update(newmoves)
         else:
             facing = (facing + rots[instr]) % 4
@@ -133,28 +135,5 @@ def day22():
     print(f"Row: {r}, Column: {c}, Facing: {f}")
     print(1000*r + 4*c + f)
 
-def getcubesize(mapd:Dict):
-    start_y = 0
-    start_x = min(x for (x,y) in mapd if y == start_y)
-    x, y = start_x, start_y
-    
-    while (x,y) in mapd and (x, start_y) in mapd and (start_x, y) in mapd:
-        x += 1
-        y += 1
-    
-    return y
-
-
-
-def day22_2():
-    mapd, start, instrset = day22_read()
-    side = getcubesize(mapd)
-    limit_x, limit_y = max(x for (x,_) in mapd), max(y for (_, y) in mapd)
-    c_x = (limit_x + 1) // side
-    c_y = (limit_y + 1) // side
-    
-    print(f"limits: {limit_x + 1}, {limit_y + 1} ({side})")
-
-
 if __name__ == "__main__":
-    day22_2()
+    day22()
