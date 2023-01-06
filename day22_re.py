@@ -33,28 +33,97 @@ def getcubesize(mapd: Dict):
 
     return y
 
-def orthogonal_conv(dir:Pos) -> Pos:
+def orthogonal_cw(dir:Pos) -> Pos:
     return (-dir[1], dir[0])
 
-def orthogonal_conc(dir:Pos) -> Pos:
+def orthogonal_ccw(dir:Pos) -> Pos:
     return (dir[1], -dir[0])
 
-def get_conv_checker(dir:Pos) -> Pos:
+def checker_ccw(dir:Pos) -> Pos:
     x0,y0 = dir
-    x1,y1 = orthogonal_conv(dir)
+    x1,y1 = orthogonal_cw(dir)
     x,y = x0 + x1, y0 + y1
     return (x,y)
 
-def get_conc_checker(dir:Pos) -> Pos:
+def checker_cw(dir:Pos) -> Pos:
     x0,y0 = dir
-    x1,y1 = orthogonal_conc(dir)
+    x1,y1 = orthogonal_ccw(dir)
     x,y = x0 + x1, y0 + y1
     return (x,y)
+
+def cw_walkgen_orth(mapd:Dict[Pos, str], start:Pos, init_dir:Pos) -> Tuple[Pos,Pos]:
+    dir = init_dir
+    checker = checker_ccw(dir)
+    orthog = orthogonal_ccw(dir)
+
+    walker = [start[0] + orthog[0], start[1] + orthog[1]]
+    #walker = [start[0], start[1]-1]
+
+    wall = (walker[0] + dir[0], walker[1] + dir[1])
+    ground = (walker[0] + checker[0], walker[1] + checker[1])
+    while ground != start:
+        yield tuple(walker), orthog
+        wall = (walker[0] + dir[0], walker[1] + dir[1])
+        ground = (walker[0] + checker[0], walker[1] + checker[1])
+        if wall in mapd:
+            # Check for wall
+            dir = orthogonal_ccw(dir)
+            checker = checker_ccw(dir)
+            orthog = orthogonal_ccw(dir)
+            walker[0] += dir[0]
+            walker[1] += dir[1]
+        elif ground not in mapd:
+            # Else, check for cliff
+            # Ground is our next position!
+            walker[:] = ground[:]
+            dir = orthogonal_cw(dir)
+            checker = checker_ccw(dir)
+            orthog = orthogonal_ccw(dir)
+        else:
+            # If no wall or cliff, we can move fwd
+            walker[0] += dir[0]
+            walker[1] += dir[1]
+    yield tuple(walker), orthog
+
+def ccw_walkgen_orth(mapd:Dict[Pos, str], start:Pos, init_dir:Pos) -> Tuple[Pos,Pos]:
+    dir = init_dir
+    checker = checker_cw(dir)
+    orthog = orthogonal_cw(dir)
+
+    walker = [start[0] + orthog[0], start[1] + orthog[1]]
+    #walker = [start[0], start[1]-1]
+    
+    wall = (walker[0] + dir[0], walker[1] + dir[1])
+    ground = (walker[0] + checker[0], walker[1] + checker[1])
+
+    while ground != start:
+        yield tuple(walker), orthog
+        wall = (walker[0] + dir[0], walker[1] + dir[1])
+        ground = (walker[0] + checker[0], walker[1] + checker[1])
+        if wall in mapd:
+            # Check for wall
+            dir = orthogonal_cw(dir)
+            checker = checker_cw(dir)
+            orthog = orthogonal_cw(dir)
+            walker[0] += dir[0]
+            walker[1] += dir[1]
+        elif ground not in mapd:
+            # Else, check for cliff
+            # Ground is our next position!
+            walker[:] = ground[:]
+            dir = orthogonal_ccw(dir)
+            checker = checker_cw(dir)
+            orthog = orthogonal_cw(dir)
+        else:
+            # If no wall or cliff, we can move fwd
+            walker[0] += dir[0]
+            walker[1] += dir[1]
+    yield tuple(walker), orthog
 
 def cw_walkgen(mapd:Dict[Pos, str], start:Pos, init_dir:Pos) -> Pos:
     dir = init_dir
-    checker = get_conv_checker(dir)
-    orthog = orthogonal_conc(dir)
+    checker = checker_ccw(dir)
+    orthog = orthogonal_ccw(dir)
 
     walker = [start[0] + orthog[0], start[1] + orthog[1]]
     #walker = [start[0], start[1]-1]
@@ -67,16 +136,17 @@ def cw_walkgen(mapd:Dict[Pos, str], start:Pos, init_dir:Pos) -> Pos:
         ground = (walker[0] + checker[0], walker[1] + checker[1])
         if wall in mapd:
             # Check for wall
-            dir = orthogonal_conc(dir)
-            checker = get_conv_checker(dir)
+            dir = orthogonal_ccw(dir)
+            checker = checker_ccw(dir)
+            ground = (walker[0] + checker[0], walker[1] + checker[1])
             walker[0] += dir[0]
             walker[1] += dir[1]
         elif ground not in mapd:
             # Else, check for cliff
             # Ground is our next position!
             walker[:] = ground[:]
-            dir = orthogonal_conv(dir)
-            checker = get_conv_checker(dir)
+            dir = orthogonal_cw(dir)
+            checker = checker_ccw(dir)
         else:
             # If no wall or cliff, we can move fwd
             walker[0] += dir[0]
@@ -85,8 +155,8 @@ def cw_walkgen(mapd:Dict[Pos, str], start:Pos, init_dir:Pos) -> Pos:
 
 def ccw_walkgen(mapd:Dict[Pos, str], start:Pos, init_dir:Pos) -> Pos:
     dir = init_dir
-    checker = get_conc_checker(dir)
-    orthog = orthogonal_conv(dir)
+    checker = checker_cw(dir)
+    orthog = orthogonal_cw(dir)
 
     walker = [start[0] + orthog[0], start[1] + orthog[1]]
     #walker = [start[0], start[1]-1]
@@ -100,16 +170,16 @@ def ccw_walkgen(mapd:Dict[Pos, str], start:Pos, init_dir:Pos) -> Pos:
         ground = (walker[0] + checker[0], walker[1] + checker[1])
         if wall in mapd:
             # Check for wall
-            dir = orthogonal_conv(dir)
-            checker = get_conc_checker(dir)
+            dir = orthogonal_cw(dir)
+            checker = checker_cw(dir)
             walker[0] += dir[0]
             walker[1] += dir[1]
         elif ground not in mapd:
             # Else, check for cliff
             # Ground is our next position!
             walker[:] = ground[:]
-            dir = orthogonal_conc(dir)
-            checker = get_conc_checker(dir)
+            dir = orthogonal_ccw(dir)
+            checker = checker_cw(dir)
         else:
             # If no wall or cliff, we can move fwd
             walker[0] += dir[0]
@@ -163,7 +233,23 @@ def concavecornergen(mapd:Dict[Pos, str]) -> Tuple[Pos,Pos]:
             internal = (2*edge[0] - external[0], 2*edge[1] - external[1])
             yield internal, edge
 
+
+def isconvexcorner(edge:Pos, mapd:Dict[Pos, str]):
+    neighbors = {
+        (edge[0] + x, edge[1] + y)
+        for x,y in itertools.product((-1,0,1), repeat=2)
+        if (edge[0] + x, edge[1] + y) in mapd
+    }
+
+    return len(neighbors) <= 2
+
+def createexitportal(edge:Pos, dir:Pos) -> Tuple[Pos,Pos]:
+    revdir = (-dir[0], -dir[1])
+    return ((edge[0] + revdir[0], edge[1] + revdir[1]), revdir)
+
 def doublewalk(mapd:Dict[Pos, str], corner:Pos, edge:Pos):
+    portals = dict()
+
     dx, dy = edge[0] - corner[0],  edge[1] - corner[1]
     dir1 = dir2 = tuple()
     if dx == dy:
@@ -177,10 +263,20 @@ def doublewalk(mapd:Dict[Pos, str], corner:Pos, edge:Pos):
     start2 = (corner[0] + dir2[0], corner[1] + dir2[1])
 
     for walker1, walker2 in zip(
-        cw_walkgen(mapd, start1, dir1),
-        ccw_walkgen(mapd, start2, dir2)
+        cw_walkgen_orth(mapd, start1, dir1),
+        ccw_walkgen_orth(mapd, start2, dir2)
     ):
-        print(f"{walker1} + {walker2}")
+        edge1, direction1 = walker1
+        edge2, direction2 = walker2
+        
+        if (edge1, direction1) not in portals:
+            portals[(edge1, direction1)] = createexitportal(edge2, direction2)
+            portals[(edge2, direction2)] = createexitportal(edge1, direction1)
+        else:
+            break
+        if isconvexcorner(edge1, mapd) and isconvexcorner(edge2, mapd):
+            break
+    return portals
 
 def printwithedges(mapd:Dict[Pos, str], edges:Set[Pos], xub:int, yub:int) -> None:
     s = ""
@@ -207,12 +303,14 @@ def day22_2():
     #outedges = walkcwalongedge(mapd)
 
     #outedges2 = walkccwalongedge(mapd)
-    outedges = set()
-
+    
+    portals = dict()
     for internal,external in concavecornergen(mapd):
-        doublewalk(mapd, internal, external)
-
-    printwithedges(mapd, outedges, limit_x, limit_y)
+        current_portals = doublewalk(mapd, internal, external)
+        portals.update(current_portals)
+    
+    for k in portals:
+        print(f"{k} -> {portals[k]}")
 
 if __name__ == "__main__":
     day22_2()
