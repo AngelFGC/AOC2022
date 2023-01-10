@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple
 
 import itertools
+import re
 
 Pos = Tuple[int, int]
 
@@ -291,14 +292,34 @@ def printwithedges(mapd:Dict[Pos, str], edges:Set[Pos], xub:int, yub:int) -> Non
         s += "\n"
     print(s)
 
+def convertportals(portals:Dict) -> Dict:
+    newportals = dict()
+    redirs = {
+        (1,0): 0,
+        (0,1): 1,
+        (-1,0): 2,
+        (0,-1): 3
+    }
+    for k in portals:
+        edge_in, dirxy_in = k
+        edge_out, dirxy_out = portals[k]
+        newportals[(edge_in, redirs[dirxy_in])] = (edge_out, redirs[dirxy_out])
+    
+    return newportals
+
+def generateinstructions(instrset):
+    miterator = re.finditer(r"(\d+|\D)", instrset)
+    for m in miterator:
+        yield m.group(0)
+
 def day22_2():
     mapd, start, instrset = day22_read()
     side = getcubesize(mapd)
     limit_x, limit_y = max(x for (x, _) in mapd), max(y for (_, y) in mapd)
-    c_x = (limit_x + 1) // side
-    c_y = (limit_y + 1) // side
+    #c_x = (limit_x + 1) // side
+    #c_y = (limit_y + 1) // side
 
-    print(f"limits: {limit_x + 1}, {limit_y + 1} ({side})")
+    #print(f"limits: {limit_x + 1}, {limit_y + 1} ({side})")
 
     #outedges = walkcwalongedge(mapd)
 
@@ -309,8 +330,52 @@ def day22_2():
         current_portals = doublewalk(mapd, internal, external)
         portals.update(current_portals)
     
-    for k in portals:
-        print(f"{k} -> {portals[k]}")
+    rots = {"R": 1, "L": -1}
+    facing = 0
+    directions = [
+        (1,0),
+        (0,1),
+        (-1,0),
+        (0,-1)
+    ]
+
+    x, y = start
+
+    # Start traversing
+    for instr in generateinstructions(instrset):
+        if instr.isnumeric():
+            steps = int(instr)
+            for _ in range(steps):
+                # Movement
+                dx, dy = directions[facing]
+                x1, y1 = x + dx, y + dy
+                if (x1, y1) in mapd:
+                    # movement inside the map
+                    if mapd[(x1,y1)] == "#":
+                        break
+                    else:
+                        x, y = x1, y1
+                elif ((x1, y1), (dx, dy)) in portals:
+                    # If landing on portal -> teleport + update direction, unless blocked
+                    (x2, y2), (dx2, dy2) = portals[(x1, y1), (dx, dy)]
+                    if (x2, y2) in mapd:
+                        if mapd[(x2,y2)] == "#":
+                            break
+                        else:
+                            x, y = x2, y2
+                            facing = directions.index((dx2, dy2))
+                    else:
+                        # error?
+                        print("what")
+                        break
+
+        else:
+            # Rotation
+            facing = (facing + rots[instr]) % 4
+    c, r, f = x+1, y+1, facing
+
+    print(f"Row: {r}, Column: {c}, Facing: {f}")
+    print(1000*r + 4*c + f)
 
 if __name__ == "__main__":
     day22_2()
